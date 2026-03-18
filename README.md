@@ -37,14 +37,6 @@ Or visit the live version: **[your-username.github.io/3lmerx-finances]()**
 2. Tap **Share** → **Add to Home Screen**
 3. Done — works like a native app
 
----
+
 *powered by elmer aguiar*
-```
 
----
-
-## 🔒 Configuração extra recomendada
-
-**Após publicar no GitHub Pages**, vai ao Google Console e adiciona o teu domínio nas origens autorizadas:
-```
-https://teu-usuario.github.io
