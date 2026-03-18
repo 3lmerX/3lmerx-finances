@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3lmerX Finances</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root {
+    --bg: #0a0f1e;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: rgba(255,255,255,0.07);
+    --accent: #00e5b0;
+    --accent2: #ff6b6b;
+    --accent3: #ffd166;
+    --text: #f0f4ff;
+    --muted: #6b7a99;
+    --income: #00e5b0;
+    --expense: #ff6b6b;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+  body::before { content:''; position:fixed; top:-200px; left:-200px; width:600px; height:600px; background:radial-gradient(circle,rgba(0,229,176,0.06) 0%,transparent 70%); pointer-events:none; z-index:0; }
+  body::after  { content:''; position:fixed; bottom:-200px; right:-100px; width:500px; height:500px; background:radial-gradient(circle,rgba(255,107,107,0.05) 0%,transparent 70%); pointer-events:none; z-index:0; }
+
+  /* ── HEADER ── */
+  header { position:sticky; top:0; z-index:200; background:rgba(10,15,30,0.88); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); padding:0 20px; display:flex; align-items:center; justify-content:space-between; height:60px; gap:12px; }
+  .logo { font-family:'Syne',sans-serif; font-size:1.15rem; font-weight:800; letter-spacing:-0.5px; white-space:nowrap; }
+  .logo span { color:var(--accent); }
+  .header-right { display:flex; align-items:center; gap:10px; }
+  .lang-select { background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:5px 10px; font-size:0.78rem; cursor:pointer; outline:none; }
+  .save-indicator { font-size:0.72rem; color:var(--accent); display:flex; align-items:center; gap:5px; opacity:0; transition:opacity 0.4s; white-space:nowrap; }
+  .save-indicator.show { opacity:1; }
+  .save-indicator::before { content:''; width:6px; height:6px; background:var(--accent); border-radius:50%; animation:pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── USER BADGE ── */
+  .user-badge { display:flex; align-items:center; gap:8px; background:var(--surface2); border:1px solid var(--border); border-radius:999px; padding:4px 12px 4px 4px; cursor:pointer; transition:border-color 0.2s; font-size:0.8rem; }
+  .user-badge:hover { border-color:var(--accent); }
+  .user-avatar { width:28px; height:28px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:700; color:#000; overflow:hidden; flex-shrink:0; }
+  .user-avatar img { width:100%; height:100%; object-fit:cover; }
+  .user-name { max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .btn-login { background:var(--accent); color:#000; border:none; border-radius:999px; padding:6px 16px; font-family:'Syne',sans-serif; font-size:0.78rem; font-weight:700; cursor:pointer; transition:background 0.2s; white-space:nowrap; }
+  .btn-login:hover { background:#00ccaa; }
+
+  /* ── LOGIN MODAL ── */
+  .modal-overlay { display:none; position:fixed; inset:0; z-index:999; background:rgba(5,8,20,0.8); backdrop-filter:blur(8px); align-items:center; justify-content:center; padding:16px; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--surface); border:1px solid var(--border); border-radius:24px; padding:32px; width:100%; max-width:420px; position:relative; animation:fadeIn 0.3s ease; }
+  .modal-close { position:absolute; top:16px; right:16px; background:none; border:none; color:var(--muted); font-size:1.2rem; cursor:pointer; }
+  .modal-close:hover { color:var(--text); }
+  .modal-title { font-family:'Syne',sans-serif; font-size:1.3rem; font-weight:800; margin-bottom:6px; }
+  .modal-sub { font-size:0.85rem; color:var(--muted); margin-bottom:28px; line-height:1.5; }
+  .google-btn { width:100%; display:flex; align-items:center; justify-content:center; gap:12px; background:#fff; color:#333; border:none; border-radius:var(--radius-sm); padding:13px; font-family:'DM Sans',sans-serif; font-size:0.95rem; font-weight:500; cursor:pointer; transition:background 0.2s; margin-bottom:12px; }
+  .google-btn:hover { background:#f5f5f5; }
+  .google-btn svg { width:20px; height:20px; flex-shrink:0; }
+  .modal-divider { display:flex; align-items:center; gap:10px; margin:16px 0; color:var(--muted); font-size:0.78rem; }
+  .modal-divider::before,.modal-divider::after { content:''; flex:1; height:1px; background:var(--border); }
+  .modal-info { background:var(--surface2); border-radius:var(--radius-sm); padding:14px; font-size:0.8rem; color:var(--muted); line-height:1.6; }
+  .modal-info strong { color:var(--accent); }
+
+  /* account panel inside profile tab */
+  .profile-avatar { width:72px; height:72px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:1.5rem; font-weight:700; color:#000; margin:0 auto 12px; overflow:hidden; }
+  .profile-avatar img { width:100%; height:100%; object-fit:cover; }
+  .profile-name { font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:700; text-align:center; }
+  .profile-email { font-size:0.8rem; color:var(--muted); text-align:center; margin-bottom:20px; }
+  .sync-status { display:flex; align-items:center; gap:8px; font-size:0.82rem; color:var(--muted); padding:10px 14px; background:var(--surface2); border-radius:var(--radius-sm); margin-bottom:12px; }
+  .sync-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .sync-dot.ok { background:var(--income); }
+  .sync-dot.warn { background:var(--accent3); }
+  .sync-dot.err { background:var(--expense); }
+  .btn-sync { width:100%; padding:12px; background:rgba(0,229,176,0.1); border:1.5px solid rgba(0,229,176,0.3); color:var(--income); border-radius:var(--radius-sm); font-family:'Syne',sans-serif; font-weight:700; font-size:0.88rem; cursor:pointer; transition:all 0.2s; margin-bottom:8px; }
+  .btn-sync:hover { background:rgba(0,229,176,0.18); }
+  .btn-logout { width:100%; padding:12px; background:transparent; border:1.5px solid rgba(255,107,107,0.3); color:var(--expense); border-radius:var(--radius-sm); font-family:'Syne',sans-serif; font-weight:700; font-size:0.88rem; cursor:pointer; transition:all 0.2s; }
+  .btn-logout:hover { background:rgba(255,107,107,0.08); }
+
+  /* ── MAIN LAYOUT ── */
+  .app { max-width:900px; margin:0 auto; padding:24px 16px 90px; position:relative; z-index:1; }
+
+  /* ── BALANCE HERO ── */
+  .balance-card { background:linear-gradient(135deg,#111827 0%,#0d1929 100%); border:1px solid var(--border); border-radius:24px; padding:30px; margin-bottom:20px; position:relative; overflow:hidden; }
+  .balance-card::before { content:''; position:absolute; top:0;left:0;right:0;bottom:0; background:linear-gradient(135deg,rgba(0,229,176,0.04) 0%,transparent 60%); pointer-events:none; }
+  .balance-label { font-size:0.72rem; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; }
+  .balance-amount { font-family:'Syne',sans-serif; font-size:clamp(2rem,8vw,3.4rem); font-weight:800; color:var(--text); line-height:1; margin-bottom:24px; }
+  .balance-amount .currency { font-size:0.4em; color:var(--muted); margin-right:4px; }
+  .stats-row { display:flex; gap:14px; flex-wrap:wrap; }
+  .stat-pill { flex:1; min-width:130px; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 14px; display:flex; align-items:center; gap:10px; }
+  .stat-icon { width:30px; height:30px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:0.95rem; flex-shrink:0; }
+  .stat-icon.income { background:rgba(0,229,176,0.12); }
+  .stat-icon.expense { background:rgba(255,107,107,0.12); }
+  .stat-info { flex:1; min-width:0; }
+  .stat-name { font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; }
+  .stat-val { font-family:'Syne',sans-serif; font-size:1rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .stat-val.income { color:var(--income); }
+  .stat-val.expense { color:var(--expense); }
+
+  /* ── TABS ── */
+  .tabs { display:flex; gap:3px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm); padding:4px; margin-bottom:20px; overflow-x:auto; }
+  .tab { flex:1; min-width:max-content; padding:9px 12px; text-align:center; border-radius:8px; cursor:pointer; font-family:'Syne',sans-serif; font-size:0.82rem; font-weight:600; color:var(--muted); transition:all 0.25s; border:none; background:none; white-space:nowrap; }
+  .tab.active { background:var(--accent); color:#000; }
+
+  /* ── PANELS ── */
+  .panel { display:none; animation:fadeIn 0.3s ease; }
+  .panel.active { display:block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+  /* ── CARDS ── */
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:22px; margin-bottom:16px; }
+  .card-title { font-family:'Syne',sans-serif; font-size:0.85rem; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; color:var(--muted); margin-bottom:16px; }
+
+  /* ── WALLETS ── */
+  .wallet-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:12px; }
+  .wallet-item { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px; transition:border-color 0.2s; }
+  .wallet-item:focus-within { border-color:var(--accent); }
+  .wallet-header { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .wallet-icon { font-size:1.2rem; }
+  .wallet-name { font-size:0.78rem; color:var(--muted); font-weight:500; }
+  .wallet-input { width:100%; background:transparent; border:none; color:var(--text); font-family:'Syne',sans-serif; font-size:1.15rem; font-weight:700; outline:none; padding:0; }
+  .wallet-input::placeholder { color:rgba(255,255,255,0.15); }
+
+  /* ── GOAL ── */
+  .goal-row { margin-bottom:14px; }
+  .goal-input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 14px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:0.95rem; outline:none; transition:border-color 0.2s; }
+  .goal-input:focus { border-color:var(--accent); }
+  .progress-bar-wrap { background:rgba(255,255,255,0.06); border-radius:999px; height:8px; overflow:hidden; margin:10px 0 7px; }
+  .progress-bar-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,var(--accent),#00b890); transition:width 0.6s cubic-bezier(.4,0,.2,1); }
+  .progress-label { font-size:0.76rem; color:var(--muted); display:flex; justify-content:space-between; }
+
+  /* ── TRANSACTION FORM ── */
+  .type-toggle { display:flex; gap:8px; margin-bottom:18px; }
+  .type-btn { flex:1; padding:11px; border-radius:var(--radius-sm); border:1.5px solid var(--border); cursor:pointer; font-family:'Syne',sans-serif; font-size:0.88rem; font-weight:700; transition:all 0.2s; background:transparent; color:var(--muted); }
+  .type-btn.expense.active { background:rgba(255,107,107,0.15); border-color:var(--expense); color:var(--expense); }
+  .type-btn.income.active  { background:rgba(0,229,176,0.12);  border-color:var(--income);  color:var(--income); }
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media(max-width:500px){ .form-grid { grid-template-columns:1fr; } }
+  .form-group { display:flex; flex-direction:column; gap:5px; }
+  .form-group.full { grid-column:1/-1; }
+  label { font-size:0.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; }
+  input[type=number],input[type=text],input[type=date],select { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 13px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:0.92rem; outline:none; transition:border-color 0.2s; width:100%; appearance:none; -webkit-appearance:none; }
+  input:focus,select:focus { border-color:var(--accent); }
+  select { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7a99' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 13px center; padding-right:34px; cursor:pointer; }
+  select option { background:#1a2235; }
+  input[type=date]::-webkit-calendar-picker-indicator { filter:invert(0.5); cursor:pointer; }
+  .btn-add { width:100%; margin-top:6px; padding:13px; background:var(--accent); color:#000; border:none; border-radius:var(--radius-sm); font-family:'Syne',sans-serif; font-size:0.92rem; font-weight:700; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .btn-add:hover { background:#00ccaa; transform:translateY(-1px); }
+
+  /* ── TX LIST ── */
+  .tx-list { display:flex; flex-direction:column; gap:7px; }
+  .tx-item { background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px 14px; display:flex; align-items:center; gap:12px; animation:slideIn 0.25s ease; }
+  @keyframes slideIn { from{opacity:0;transform:translateX(-10px)} to{opacity:1;transform:translateX(0)} }
+  .tx-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .tx-dot.income  { background:var(--income); }
+  .tx-dot.expense { background:var(--expense); }
+  .tx-info { flex:1; min-width:0; }
+  .tx-desc { font-size:0.88rem; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tx-meta { font-size:0.7rem; color:var(--muted); margin-top:2px; }
+  .tx-amount { font-family:'Syne',sans-serif; font-size:0.95rem; font-weight:700; white-space:nowrap; }
+  .tx-amount.income  { color:var(--income); }
+  .tx-amount.expense { color:var(--expense); }
+  .tx-delete { background:none; border:none; color:var(--muted); cursor:pointer; font-size:0.95rem; padding:4px; border-radius:6px; transition:all 0.2s; flex-shrink:0; }
+  .tx-delete:hover { color:var(--expense); background:rgba(255,107,107,0.1); }
+  .empty-state { text-align:center; color:var(--muted); padding:36px 0; font-size:0.88rem; }
+  .empty-state .empty-icon { font-size:2.2rem; margin-bottom:8px; }
+
+  /* ── CHART ── */
+  .chart-wrap { height:180px; margin-top:8px; }
+  .bar-chart { display:flex; align-items:flex-end; gap:8px; height:100%; }
+  .bar-group { flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; height:100%; justify-content:flex-end; }
+  .bar-pair { display:flex; gap:3px; align-items:flex-end; width:100%; justify-content:center; }
+  .bar { width:13px; border-radius:4px 4px 0 0; min-height:3px; transition:height 0.5s cubic-bezier(.4,0,.2,1); }
+  .bar.income  { background:var(--income);  opacity:0.85; }
+  .bar.expense { background:var(--expense); opacity:0.85; }
+  .bar-label { font-size:0.62rem; color:var(--muted); }
+  .chart-legend { display:flex; gap:14px; margin-top:10px; justify-content:center; }
+  .legend-item { display:flex; align-items:center; gap:5px; font-size:0.73rem; color:var(--muted); }
+  .legend-dot { width:7px; height:7px; border-radius:50%; }
+
+  /* ── CATEGORY BREAKDOWN ── */
+  .cat-list { display:flex; flex-direction:column; gap:9px; }
+  .cat-item { display:flex; align-items:center; gap:10px; }
+  .cat-label { font-size:0.8rem; min-width:90px; color:var(--muted); }
+  .cat-bar-wrap { flex:1; background:rgba(255,255,255,0.05); border-radius:999px; height:5px; overflow:hidden; }
+  .cat-bar-fill { height:100%; border-radius:999px; background:var(--expense); transition:width 0.5s; }
+  .cat-amount { font-family:'Syne',sans-serif; font-size:0.8rem; font-weight:700; min-width:80px; text-align:right; color:var(--expense); }
+
+  /* ── FILTER ── */
+  .filter-row { display:flex; gap:7px; margin-bottom:12px; flex-wrap:wrap; }
+  .filter-btn { padding:5px 13px; border-radius:999px; border:1px solid var(--border); font-size:0.75rem; cursor:pointer; background:transparent; color:var(--muted); transition:all 0.2s; font-family:'DM Sans',sans-serif; }
+  .filter-btn.active { background:var(--accent); border-color:var(--accent); color:#000; font-weight:600; }
+
+  /* ── DATA BTNS ── */
+  .data-btns { display:flex; gap:9px; flex-wrap:wrap; }
+  .btn-secondary { flex:1; min-width:120px; padding:11px 14px; border-radius:var(--radius-sm); border:1.5px solid var(--border); font-family:'Syne',sans-serif; font-size:0.8rem; font-weight:700; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:7px; background:transparent; }
+  .btn-secondary.export { color:var(--income); border-color:rgba(0,229,176,0.3); }
+  .btn-secondary.export:hover { background:rgba(0,229,176,0.08); }
+  .btn-secondary.import { color:var(--accent3); border-color:rgba(255,209,102,0.3); }
+  .btn-secondary.import:hover { background:rgba(255,209,102,0.06); }
+  .btn-secondary.clear { color:var(--expense); border-color:rgba(255,107,107,0.3); }
+  .btn-secondary.clear:hover { background:rgba(255,107,107,0.08); }
+
+  /* ── MONTH NAV ── */
+  .month-nav { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+  .month-nav button { background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:8px; width:30px; height:30px; cursor:pointer; font-size:1rem; display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
+  .month-nav button:hover { border-color:var(--accent); color:var(--accent); }
+  .month-name { font-family:'Syne',sans-serif; font-weight:700; font-size:0.92rem; }
+
+  /* ── TOAST ── */
+  #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--surface); border:1px solid var(--accent); border-radius:var(--radius-sm); padding:11px 20px; font-size:0.83rem; color:var(--accent); opacity:0; transition:all 0.3s; z-index:9999; white-space:nowrap; box-shadow:0 8px 32px rgba(0,229,176,0.15); }
+  #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* ── SPINNER ── */
+  .spinner { width:18px; height:18px; border:2px solid rgba(0,229,176,0.3); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; display:inline-block; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  input[type=file] { display:none; }
+  ::-webkit-scrollbar { width:5px; }
+  ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:3px; }
+  @media(max-width:600px){ .balance-card{padding:18px} .card{padding:14px} header{padding:0 12px} .app{padding:14px 10px 90px} }
+</style>
+</head>
+<body>
+
+<!-- ════════════ HEADER ════════════ -->
+<header>
+  <div class="logo">3lmerX <span>Finances</span></div>
+  <div class="header-right">
+    <select class="lang-select" id="langSelect" onchange="changeLang(this.value)">
+      <option value="pt">🇵🇹 Português</option>
+      <option value="en">🇬🇧 English</option>
+      <option value="es">🇪🇸 Español</option>
+      <option value="fr">🇫🇷 Français</option>
+    </select>
+    <div class="save-indicator" id="saveIndicator" data-i18n="saved">Guardado</div>
+    <div id="headerUser"></div>
+  </div>
+</header>
+
+<!-- ════════════ LOGIN MODAL ════════════ -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title" data-i18n="modal_title">Conta 3lmerX</div>
+    <div class="modal-sub" data-i18n="modal_sub">Faça login para sincronizar os seus dados automaticamente com o Google Drive. Totalmente gratuito e seguro.</div>
+    <button class="google-btn" onclick="signInWithGoogle()">
+      <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+      <span data-i18n="login_google">Continuar com Google</span>
+    </button>
+    <div class="modal-divider"><span data-i18n="or">ou</span></div>
+    <div class="modal-info">
+      <strong data-i18n="local_mode">Modo Local</strong><br>
+      <span data-i18n="local_desc">Sem login, os seus dados ficam guardados apenas neste dispositivo/navegador. Pode exportar/importar JSON a qualquer momento para fazer backup manual.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════ APP ════════════ -->
+<div class="app">
+
+  <!-- BALANCE HERO -->
+  <div class="balance-card">
+    <div class="balance-label" data-i18n="total_balance">Saldo Disponível (Total de Ativos)</div>
+    <div class="balance-amount"><span class="currency">MTn</span><span id="totalBalance">0,00</span></div>
+    <div class="stats-row">
+      <div class="stat-pill">
+        <div class="stat-icon income">📈</div>
+        <div class="stat-info">
+          <div class="stat-name" data-i18n="total_income">Renda Total</div>
+          <div class="stat-val income" id="totalIncome">0,00 MTn</div>
+        </div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-icon expense">📉</div>
+        <div class="stat-info">
+          <div class="stat-name" data-i18n="total_expense">Despesa Total</div>
+          <div class="stat-val expense" id="totalExpense">0,00 MTn</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('overview')"  data-i18n="tab_overview">Visão Geral</button>
+    <button class="tab"        onclick="switchTab('transactions')" data-i18n="tab_tx">Transações</button>
+    <button class="tab"        onclick="switchTab('stats')"     data-i18n="tab_stats">Relatórios</button>
+    <button class="tab"        onclick="switchTab('account')"   data-i18n="tab_account">Conta</button>
+  </div>
+
+  <!-- ── OVERVIEW PANEL ── -->
+  <div class="panel active" id="panel-overview">
+    <div class="card">
+      <div class="card-title" data-i18n="my_assets">💳 Meus Ativos</div>
+      <div class="wallet-grid">
+        <div class="wallet-item">
+          <div class="wallet-header"><span class="wallet-icon">🏦</span><span class="wallet-name" data-i18n="w_bank">Banco</span></div>
+          <input class="wallet-input" type="number" id="w-banco" placeholder="0.00" min="0" step="0.01" oninput="saveWallets()">
+        </div>
+        <div class="wallet-item">
+          <div class="wallet-header"><span class="wallet-icon">📱</span><span class="wallet-name" data-i18n="w_mobile">Carteira Móvel</span></div>
+          <input class="wallet-input" type="number" id="w-movel" placeholder="0.00" min="0" step="0.01" oninput="saveWallets()">
+        </div>
+        <div class="wallet-item">
+          <div class="wallet-header"><span class="wallet-icon">💵</span><span class="wallet-name" data-i18n="w_cash">Dinheiro Físico</span></div>
+          <input class="wallet-input" type="number" id="w-fisico" placeholder="0.00" min="0" step="0.01" oninput="saveWallets()">
+        </div>
+        <div class="wallet-item">
+          <div class="wallet-header"><span class="wallet-icon">🪙</span><span class="wallet-name" data-i18n="w_other">Outros</span></div>
+          <input class="wallet-input" type="number" id="w-outros" placeholder="0.00" min="0" step="0.01" oninput="saveWallets()">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" data-i18n="savings_goal">🎯 Meta de Poupança</div>
+      <div class="goal-row">
+        <input class="goal-input" type="number" id="goalInput" placeholder="Meta em MTn" min="0" oninput="updateGoal()">
+      </div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+      <div class="progress-label"><span id="progressPct">0%</span><span id="progressVals">0,00 / 0,00 MTn</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" data-i18n="data_mgmt">⚙️ Gerenciamento de Dados</div>
+      <div class="data-btns">
+        <button class="btn-secondary export" onclick="exportJSON()"><span>⬇</span><span data-i18n="export_json">Exportar JSON</span></button>
+        <button class="btn-secondary import" onclick="document.getElementById('importFile').click()"><span>⬆</span><span data-i18n="import_json">Importar JSON</span></button>
+        <button class="btn-secondary clear"  onclick="confirmClear()"><span>🗑</span><span data-i18n="clear_all">Limpar Tudo</span></button>
+      </div>
+      <input type="file" id="importFile" accept=".json" onchange="importJSON(event)">
+    </div>
+  </div>
+
+  <!-- ── TRANSACTIONS PANEL ── -->
+  <div class="panel" id="panel-transactions">
+    <div class="card">
+      <div class="card-title" data-i18n="add_tx">➕ Adicionar Transação</div>
+      <div class="type-toggle">
+        <button class="type-btn expense active" id="btn-expense" onclick="setType('expense')" data-i18n="expense">📉 Despesa</button>
+        <button class="type-btn income"         id="btn-income"  onclick="setType('income')"  data-i18n="income">📈 Renda</button>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label data-i18n="amount">Valor (MTn)</label>
+          <input type="number" id="txAmount" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label data-i18n="category">Categoria</label>
+          <select id="txCategory"></select>
+        </div>
+        <div class="form-group">
+          <label id="walletLabel" data-i18n="paid_from">Pago de</label>
+          <select id="txWallet">
+            <option value="Banco"          data-i18n="w_bank">🏦 Banco</option>
+            <option value="Carteira Móvel" data-i18n="w_mobile">📱 Carteira Móvel</option>
+            <option value="Dinheiro Físico" data-i18n="w_cash">💵 Dinheiro Físico</option>
+            <option value="Outros"         data-i18n="w_other">🪙 Outros</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label data-i18n="date">Data</label>
+          <input type="date" id="txDate">
+        </div>
+        <div class="form-group full">
+          <label data-i18n="description">Descrição (Opcional)</label>
+          <input type="text" id="txDesc" placeholder="Ex: Almoço, salário...">
+        </div>
+      </div>
+      <button class="btn-add" onclick="addTransaction()">+ <span data-i18n="add_btn">Adicionar</span></button>
+    </div>
+
+    <div class="card">
+      <div class="card-title" data-i18n="history">📋 Histórico de Transações</div>
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="setFilter('all',this)"     data-i18n="filter_all">Todos</button>
+        <button class="filter-btn"        onclick="setFilter('income',this)"  data-i18n="filter_income">Rendas</button>
+        <button class="filter-btn"        onclick="setFilter('expense',this)" data-i18n="filter_expense">Despesas</button>
+      </div>
+      <div class="tx-list" id="txList"></div>
+    </div>
+  </div>
+
+  <!-- ── STATS PANEL ── -->
+  <div class="panel" id="panel-stats">
+    <div class="card">
+      <div class="card-title" data-i18n="monthly_chart">📊 Evolução Mensal</div>
+      <div class="month-nav">
+        <button onclick="changeMonth(-1)">‹</button>
+        <span class="month-name" id="monthDisplay"></span>
+        <button onclick="changeMonth(1)">›</button>
+      </div>
+      <div class="chart-wrap"><div class="bar-chart" id="barChart"></div></div>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--income)"></div><span data-i18n="income_leg">Renda</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--expense)"></div><span data-i18n="expense_leg">Despesa</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" data-i18n="by_category">🗂 Despesas por Categoria</div>
+      <div class="cat-list" id="catBreakdown"></div>
+    </div>
+    <div class="card">
+      <div class="card-title" data-i18n="month_summary">📅 Resumo do Mês Atual</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px" id="monthSummary"></div>
+    </div>
+  </div>
+
+  <!-- ── ACCOUNT PANEL ── -->
+  <div class="panel" id="panel-account">
+    <div class="card" id="accountCard">
+      <!-- filled by renderAccountPanel() -->
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<div id="toast"></div>
+
+<!-- ════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════ -->
+<script>
+// ╔══════════════════════════════════╗
+// ║  i18n / TRANSLATIONS             ║
+// ╚══════════════════════════════════╝
+const LANGS = {
+  pt: {
+    saved:'Guardado', tab_overview:'Visão Geral', tab_tx:'Transações', tab_stats:'Relatórios', tab_account:'Conta',
+    total_balance:'Saldo Disponível (Total de Ativos)', total_income:'Renda Total', total_expense:'Despesa Total',
+    my_assets:'💳 Meus Ativos', w_bank:'Banco', w_mobile:'Carteira Móvel', w_cash:'Dinheiro Físico', w_other:'Outros',
+    savings_goal:'🎯 Meta de Poupança', data_mgmt:'⚙️ Gerenciamento de Dados',
+    export_json:'Exportar JSON', import_json:'Importar JSON', clear_all:'Limpar Tudo',
+    add_tx:'➕ Adicionar Transação', expense:'📉 Despesa', income:'📈 Renda',
+    amount:'Valor (MTn)', category:'Categoria', paid_from:'Pago de', received_in:'Recebido em',
+    date:'Data', description:'Descrição (Opcional)', add_btn:'Adicionar',
+    history:'📋 Histórico de Transações', filter_all:'Todos', filter_income:'Rendas', filter_expense:'Despesas',
+    monthly_chart:'📊 Evolução Mensal', by_category:'🗂 Despesas por Categoria', month_summary:'📅 Resumo do Mês Atual',
+    income_leg:'Renda', expense_leg:'Despesa',
+    modal_title:'Conta 3lmerX', modal_sub:'Faça login para sincronizar os seus dados automaticamente com o Google Drive. Totalmente gratuito e seguro.',
+    login_google:'Continuar com Google', or:'ou',
+    local_mode:'Modo Local', local_desc:'Sem login, os seus dados ficam guardados apenas neste dispositivo. Pode exportar/importar JSON a qualquer momento.',
+    account_login_prompt:'Faça login para sincronizar com Google Drive', login_btn:'Entrar com Google',
+    account_logged_as:'Conta conectada', sync_status:'Último sync', sync_btn:'Sincronizar Agora', logout_btn:'Sair da Conta',
+    never_synced:'Nunca sincronizado', syncing:'A sincronizar...', sync_ok:'Sincronizado com sucesso!', sync_err:'Erro ao sincronizar',
+    local_storage:'Armazenamento Local', drive_storage:'Google Drive',
+    cats_expense:['Alimentação','Transporte','Saúde','Moradia','Lazer','Educação','Vestuário','Comunicação','Outros'],
+    cats_income:['Salário','Trabalho Freelancer','Negócio','Investimento','Presente','Outros'],
+    months:['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],
+    weeks:['S1','S2','S3','S4'],
+    tx_deleted:'🗑 Transação eliminada', tx_added_expense:'🔴 Despesa registada!', tx_added_income:'💚 Renda registada!',
+    exported:'📁 Dados exportados!', imported:'✅ Dados importados com sucesso!', invalid_file:'❌ Ficheiro inválido',
+    cleared:'🗑 Dados eliminados', confirm_clear:'Tem a certeza? Todos os dados serão eliminados permanentemente.',
+    invalid_amount:'Insira um valor válido', login_success:'✅ Login realizado com sucesso!', logout_success:'👋 Sessão terminada',
+  },
+  en: {
+    saved:'Saved', tab_overview:'Overview', tab_tx:'Transactions', tab_stats:'Reports', tab_account:'Account',
+    total_balance:'Available Balance (Total Assets)', total_income:'Total Income', total_expense:'Total Expenses',
+    my_assets:'💳 My Assets', w_bank:'Bank', w_mobile:'Mobile Wallet', w_cash:'Cash', w_other:'Other',
+    savings_goal:'🎯 Savings Goal', data_mgmt:'⚙️ Data Management',
+    export_json:'Export JSON', import_json:'Import JSON', clear_all:'Clear All',
+    add_tx:'➕ Add Transaction', expense:'📉 Expense', income:'📈 Income',
+    amount:'Amount (MTn)', category:'Category', paid_from:'Paid from', received_in:'Received in',
+    date:'Date', description:'Description (Optional)', add_btn:'Add',
+    history:'📋 Transaction History', filter_all:'All', filter_income:'Income', filter_expense:'Expenses',
+    monthly_chart:'📊 Monthly Overview', by_category:'🗂 Expenses by Category', month_summary:'📅 Current Month Summary',
+    income_leg:'Income', expense_leg:'Expense',
+    modal_title:'3lmerX Account', modal_sub:'Sign in to automatically sync your data with Google Drive. Free and secure.',
+    login_google:'Continue with Google', or:'or',
+    local_mode:'Local Mode', local_desc:'Without login, your data is stored only on this device. Export/import JSON anytime for manual backup.',
+    account_login_prompt:'Sign in to sync with Google Drive', login_btn:'Sign in with Google',
+    account_logged_as:'Connected account', sync_status:'Last sync', sync_btn:'Sync Now', logout_btn:'Sign Out',
+    never_synced:'Never synced', syncing:'Syncing...', sync_ok:'Synced successfully!', sync_err:'Sync error',
+    local_storage:'Local Storage', drive_storage:'Google Drive',
+    cats_expense:['Food','Transport','Health','Housing','Leisure','Education','Clothing','Communication','Other'],
+    cats_income:['Salary','Freelance Work','Business','Investment','Gift','Other'],
+    months:['January','February','March','April','May','June','July','August','September','October','November','December'],
+    weeks:['W1','W2','W3','W4'],
+    tx_deleted:'🗑 Transaction deleted', tx_added_expense:'🔴 Expense added!', tx_added_income:'💚 Income added!',
+    exported:'📁 Data exported!', imported:'✅ Data imported successfully!', invalid_file:'❌ Invalid file',
+    cleared:'🗑 Data cleared', confirm_clear:'Are you sure? All data will be permanently deleted.',
+    invalid_amount:'Enter a valid amount', login_success:'✅ Logged in successfully!', logout_success:'👋 Signed out',
+  },
+  es: {
+    saved:'Guardado', tab_overview:'Resumen', tab_tx:'Transacciones', tab_stats:'Informes', tab_account:'Cuenta',
+    total_balance:'Saldo Disponible (Total Activos)', total_income:'Ingresos Totales', total_expense:'Gastos Totales',
+    my_assets:'💳 Mis Activos', w_bank:'Banco', w_mobile:'Billetera Móvil', w_cash:'Efectivo', w_other:'Otros',
+    savings_goal:'🎯 Meta de Ahorro', data_mgmt:'⚙️ Gestión de Datos',
+    export_json:'Exportar JSON', import_json:'Importar JSON', clear_all:'Borrar Todo',
+    add_tx:'➕ Agregar Transacción', expense:'📉 Gasto', income:'📈 Ingreso',
+    amount:'Monto (MTn)', category:'Categoría', paid_from:'Pagado desde', received_in:'Recibido en',
+    date:'Fecha', description:'Descripción (Opcional)', add_btn:'Agregar',
+    history:'📋 Historial de Transacciones', filter_all:'Todos', filter_income:'Ingresos', filter_expense:'Gastos',
+    monthly_chart:'📊 Evolución Mensual', by_category:'🗂 Gastos por Categoría', month_summary:'📅 Resumen del Mes Actual',
+    income_leg:'Ingresos', expense_leg:'Gastos',
+    modal_title:'Cuenta 3lmerX', modal_sub:'Inicia sesión para sincronizar tus datos con Google Drive automáticamente. Gratis y seguro.',
+    login_google:'Continuar con Google', or:'o',
+    local_mode:'Modo Local', local_desc:'Sin login, tus datos se guardan solo en este dispositivo. Exporta/importa JSON cuando quieras.',
+    account_login_prompt:'Inicia sesión para sincronizar con Google Drive', login_btn:'Entrar con Google',
+    account_logged_as:'Cuenta conectada', sync_status:'Última sincronización', sync_btn:'Sincronizar Ahora', logout_btn:'Cerrar Sesión',
+    never_synced:'Nunca sincronizado', syncing:'Sincronizando...', sync_ok:'¡Sincronizado!', sync_err:'Error de sincronización',
+    local_storage:'Almacenamiento Local', drive_storage:'Google Drive',
+    cats_expense:['Alimentación','Transporte','Salud','Vivienda','Ocio','Educación','Ropa','Comunicación','Otros'],
+    cats_income:['Salario','Trabajo Freelance','Negocio','Inversión','Regalo','Otros'],
+    months:['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'],
+    weeks:['S1','S2','S3','S4'],
+    tx_deleted:'🗑 Transacción eliminada', tx_added_expense:'🔴 ¡Gasto registrado!', tx_added_income:'💚 ¡Ingreso registrado!',
+    exported:'📁 ¡Datos exportados!', imported:'✅ ¡Datos importados!', invalid_file:'❌ Archivo inválido',
+    cleared:'🗑 Datos eliminados', confirm_clear:'¿Estás seguro? Todos los datos se eliminarán permanentemente.',
+    invalid_amount:'Ingresa un monto válido', login_success:'✅ ¡Sesión iniciada!', logout_success:'👋 Sesión cerrada',
+  },
+  fr: {
+    saved:'Sauvegardé', tab_overview:'Aperçu', tab_tx:'Transactions', tab_stats:'Rapports', tab_account:'Compte',
+    total_balance:'Solde Disponible (Total Actifs)', total_income:'Revenus Totaux', total_expense:'Dépenses Totales',
+    my_assets:'💳 Mes Actifs', w_bank:'Banque', w_mobile:'Portefeuille Mobile', w_cash:'Espèces', w_other:'Autre',
+    savings_goal:'🎯 Objectif d\'Épargne', data_mgmt:'⚙️ Gestion des Données',
+    export_json:'Exporter JSON', import_json:'Importer JSON', clear_all:'Tout Effacer',
+    add_tx:'➕ Ajouter Transaction', expense:'📉 Dépense', income:'📈 Revenu',
+    amount:'Montant (MTn)', category:'Catégorie', paid_from:'Payé depuis', received_in:'Reçu sur',
+    date:'Date', description:'Description (Optionnel)', add_btn:'Ajouter',
+    history:'📋 Historique', filter_all:'Tous', filter_income:'Revenus', filter_expense:'Dépenses',
+    monthly_chart:'📊 Évolution Mensuelle', by_category:'🗂 Dépenses par Catégorie', month_summary:'📅 Résumé du Mois',
+    income_leg:'Revenus', expense_leg:'Dépenses',
+    modal_title:'Compte 3lmerX', modal_sub:'Connectez-vous pour synchroniser vos données avec Google Drive. Gratuit et sécurisé.',
+    login_google:'Continuer avec Google', or:'ou',
+    local_mode:'Mode Local', local_desc:'Sans connexion, vos données sont stockées localement. Exportez/importez JSON à tout moment.',
+    account_login_prompt:'Connectez-vous pour synchroniser avec Google Drive', login_btn:'Se connecter avec Google',
+    account_logged_as:'Compte connecté', sync_status:'Dernière synchro', sync_btn:'Synchroniser', logout_btn:'Déconnexion',
+    never_synced:'Jamais synchronisé', syncing:'Synchronisation...', sync_ok:'Synchronisé !', sync_err:'Erreur de synchronisation',
+    local_storage:'Stockage Local', drive_storage:'Google Drive',
+    cats_expense:['Alimentation','Transport','Santé','Logement','Loisirs','Éducation','Vêtements','Communication','Autre'],
+    cats_income:['Salaire','Freelance','Business','Investissement','Cadeau','Autre'],
+    months:['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'],
+    weeks:['S1','S2','S3','S4'],
+    tx_deleted:'🗑 Transaction supprimée', tx_added_expense:'🔴 Dépense ajoutée !', tx_added_income:'💚 Revenu ajouté !',
+    exported:'📁 Données exportées !', imported:'✅ Données importées !', invalid_file:'❌ Fichier invalide',
+    cleared:'🗑 Données effacées', confirm_clear:'Êtes-vous sûr ? Toutes les données seront supprimées définitivement.',
+    invalid_amount:'Entrez un montant valide', login_success:'✅ Connecté avec succès !', logout_success:'👋 Déconnecté',
+  }
+};
+
+// ╔══════════════════════════════════╗
+// ║  STATE                           ║
+// ╚══════════════════════════════════╝
+let state = {
+  wallets:{ banco:0, movel:0, fisico:0, outros:0 },
+  transactions:[], goal:1000, filter:'all',
+  txType:'expense', chartMonth:new Date().getMonth(), chartYear:new Date().getFullYear(),
+  lang:'pt', lastSync:null
+};
+let currentUser = null; // { name, email, picture, accessToken }
+const DRIVE_FILE_NAME = '3lmerX_Finances_backup.json';
+const GDRIVE_API = 'https://www.googleapis.com/drive/v3';
+const GDRIVE_UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
+
+// ╔══════════════════════════════════╗
+// ║  i18n HELPERS                    ║
+// ╚══════════════════════════════════╝
+function t(key){ return (LANGS[state.lang]||LANGS.pt)[key] || key; }
+function applyTranslations(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key = el.getAttribute('data-i18n');
+    const val = t(key);
+    if(val) el.textContent = val;
+  });
+  // wallet label in form
+  const wl = document.getElementById('walletLabel');
+  if(wl) wl.textContent = state.txType==='expense' ? t('paid_from') : t('received_in');
+  setMonthDisplay();
+  renderTransactions();
+  renderAccountPanel();
+}
+function changeLang(lang){
+  state.lang = lang;
+  applyTranslations();
+  setType(state.txType); // refresh categories
+  saveData();
+}
+
+// ╔══════════════════════════════════╗
+// ║  INIT                            ║
+// ╚══════════════════════════════════╝
+function init(){
+  loadData();
+  document.getElementById('langSelect').value = state.lang||'pt';
+  renderWallets();
+  updateStats();
+  renderTransactions();
+  updateGoal();
+  setType('expense');
+  setTodayDate();
+  renderChart();
+  renderCatBreakdown();
+  renderMonthSummary();
+  setMonthDisplay();
+  renderHeaderUser();
+  renderAccountPanel();
+  applyTranslations();
+}
+
+// ╔══════════════════════════════════╗
+// ║  STORAGE                         ║
+// ╚══════════════════════════════════╝
+function saveData(){
+  localStorage.setItem('3lmerx_finances', JSON.stringify({ state, user: currentUser ? { name:currentUser.name, email:currentUser.email, picture:currentUser.picture } : null }));
+  showSaveIndicator();
+}
+function loadData(){
+  const raw = localStorage.getItem('3lmerx_finances');
+  if(raw){
+    try{
+      const saved = JSON.parse(raw);
+      if(saved.state){ state = {...state,...saved.state}; if(saved.state.wallets) state.wallets={...state.wallets,...saved.state.wallets}; }
+      if(saved.user) currentUser = saved.user; // restore display info only
+    }catch(e){}
+  }
+}
+function showSaveIndicator(){
+  const el=document.getElementById('saveIndicator');
+  el.classList.add('show'); clearTimeout(el._t);
+  el._t=setTimeout(()=>el.classList.remove('show'),2000);
+}
+
+// ╔══════════════════════════════════╗
+// ║  GOOGLE AUTH (GIS)               ║
+// ╚══════════════════════════════════╝
+// ──────────────────────────────────
+// HOW TO ENABLE REAL GOOGLE LOGIN:
+// 1. Go to https://console.cloud.google.com/
+// 2. Create a project → Enable Google Drive API
+// 3. Credentials → Create OAuth 2.0 Client ID (Web)
+// 4. Add your domain to Authorized JS Origins
+// 5. Replace YOUR_CLIENT_ID below with the real client ID
+// ──────────────────────────────────
+const GOOGLE_CLIENT_ID = 'YOUR_CLIENT_ID.apps.googleusercontent.com';
+let tokenClient = null;
+
+function initGoogleAuth(){
+  if(typeof google === 'undefined') return;
+  try {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+      callback: handleTokenResponse
+    });
+  } catch(e){ console.warn('Google Auth not configured:', e); }
+}
+
+function signInWithGoogle(){
+  if(GOOGLE_CLIENT_ID === 'YOUR_CLIENT_ID.apps.googleusercontent.com'){
+    // Demo mode: simulate login with placeholder
+    showDemoLogin(); return;
+  }
+  if(!tokenClient){ toast('❌ Google Auth não disponível'); return; }
+  tokenClient.requestAccessToken();
+}
+
+async function handleTokenResponse(response){
+  if(response.error) return;
+  const accessToken = response.access_token;
+  // Fetch user info
+  const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers:{ Authorization:`Bearer ${accessToken}` } });
+  const info = await res.json();
+  currentUser = { name:info.name, email:info.email, picture:info.picture, accessToken };
+  closeModal();
+  saveData();
+  renderHeaderUser();
+  renderAccountPanel();
+  toast(t('login_success'));
+  // auto-sync on login
+  syncWithDrive();
+}
+
+// Demo login (when no client ID configured)
+function showDemoLogin(){
+  currentUser = {
+    name:'Demo User', email:'demo@3lmerx.com', picture:'',
+    accessToken: null, _demo: true
+  };
+  closeModal();
+  saveData();
+  renderHeaderUser();
+  renderAccountPanel();
+  toast('👤 Modo Demo — configure o Client ID para Google Drive real');
+}
+
+function signOut(){
+  if(typeof google !== 'undefined' && currentUser && !currentUser._demo){
+    try{ google.accounts.oauth2.revoke(currentUser.accessToken); }catch(e){}
+  }
+  currentUser = null;
+  saveData();
+  renderHeaderUser();
+  renderAccountPanel();
+  toast(t('logout_success'));
+}
+
+// ╔══════════════════════════════════╗
+// ║  GOOGLE DRIVE SYNC               ║
+// ╚══════════════════════════════════╝
+async function syncWithDrive(){
+  if(!currentUser || currentUser._demo || !currentUser.accessToken){ toast('⚠️ Modo Demo: sync não disponível'); return; }
+  toast(t('syncing')); renderAccountPanel();
+  try {
+    // Search for existing backup file in appDataFolder
+    const search = await fetch(`${GDRIVE_API}/files?spaces=appDataFolder&q=name='${DRIVE_FILE_NAME}'&fields=files(id,name)`, {
+      headers:{ Authorization:`Bearer ${currentUser.accessToken}` }
+    });
+    const result = await search.json();
+    const files = result.files || [];
+    const payload = JSON.stringify({ state, exportedAt: new Date().toISOString() });
+    if(files.length > 0){
+      // Update existing file
+      await fetch(`${GDRIVE_UPLOAD}/files/${files[0].id}?uploadType=media`, {
+        method:'PATCH', headers:{ Authorization:`Bearer ${currentUser.accessToken}`, 'Content-Type':'application/json' },
+        body: payload
+      });
+    } else {
+      // Create new file
+      const meta = { name: DRIVE_FILE_NAME, parents:['appDataFolder'] };
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(meta)], {type:'application/json'}));
+      form.append('file', new Blob([payload], {type:'application/json'}));
+      await fetch(`${GDRIVE_UPLOAD}/files?uploadType=multipart`, {
+        method:'POST', headers:{ Authorization:`Bearer ${currentUser.accessToken}` }, body:form
+      });
+    }
+    state.lastSync = new Date().toISOString();
+    saveData(); renderAccountPanel(); toast(t('sync_ok'));
+  } catch(e){ console.error(e); toast(t('sync_err')); renderAccountPanel(); }
+}
+
+async function restoreFromDrive(){
+  if(!currentUser || currentUser._demo || !currentUser.accessToken){ toast('⚠️ Modo Demo'); return; }
+  try {
+    const search = await fetch(`${GDRIVE_API}/files?spaces=appDataFolder&q=name='${DRIVE_FILE_NAME}'&fields=files(id)`, {
+      headers:{ Authorization:`Bearer ${currentUser.accessToken}` }
+    });
+    const result = await search.json();
+    const files = result.files||[];
+    if(!files.length){ toast('Nenhum backup encontrado no Drive'); return; }
+    const dl = await fetch(`${GDRIVE_API}/files/${files[0].id}?alt=media`, {
+      headers:{ Authorization:`Bearer ${currentUser.accessToken}` }
+    });
+    const data = await dl.json();
+    if(data.state){ state = {...state,...data.state}; if(data.state.wallets) state.wallets={...state.wallets,...data.state.wallets}; }
+    renderWallets(); updateStats(); updateGoal(); renderTransactions(); renderChart(); renderCatBreakdown(); renderMonthSummary();
+    saveData(); toast(t('imported'));
+  } catch(e){ toast(t('sync_err')); }
+}
+
+// ╔══════════════════════════════════╗
+// ║  HEADER USER                     ║
+// ╚══════════════════════════════════╝
+function renderHeaderUser(){
+  const el = document.getElementById('headerUser');
+  if(currentUser){
+    el.innerHTML = `<div class="user-badge" onclick="switchTab('account')">
+      <div class="user-avatar">${currentUser.picture ? `<img src="${currentUser.picture}" onerror="this.style.display='none';this.parentElement.textContent='${currentUser.name[0]}'">` : currentUser.name[0]}
+      </div>
+      <span class="user-name">${currentUser.name.split(' ')[0]}</span>
+    </div>`;
+  } else {
+    el.innerHTML = `<button class="btn-login" onclick="openModal()">${t('login_btn')||'Login'}</button>`;
+  }
+}
+
+// ╔══════════════════════════════════╗
+// ║  ACCOUNT PANEL                   ║
+// ╚══════════════════════════════════╝
+function renderAccountPanel(){
+  const el = document.getElementById('accountCard');
+  if(!currentUser){
+    el.innerHTML = `
+      <div class="card-title" data-i18n="tab_account">${t('tab_account')}</div>
+      <div style="text-align:center;padding:20px 0">
+        <div style="font-size:3rem;margin-bottom:14px">☁️</div>
+        <div style="font-size:0.95rem;color:var(--muted);margin-bottom:20px;line-height:1.6">${t('account_login_prompt')}</div>
+        <button class="google-btn" style="max-width:320px;margin:0 auto 14px" onclick="openModal()">
+          <svg viewBox="0 0 48 48" style="width:20px;height:20px"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+          ${t('login_google')}
+        </button>
+        <div class="modal-info">${t('local_desc')}</div>
+      </div>`;
+  } else {
+    const syncTime = state.lastSync ? new Date(state.lastSync).toLocaleString() : t('never_synced');
+    const isDemo = currentUser._demo;
+    el.innerHTML = `
+      <div class="card-title">${t('tab_account')}</div>
+      <div class="profile-avatar">${currentUser.picture ? `<img src="${currentUser.picture}" onerror="this.style.display='none';this.parentElement.textContent='${currentUser.name[0]}'">` : currentUser.name[0]}</div>
+      <div class="profile-name">${currentUser.name}</div>
+      <div class="profile-email">${currentUser.email}</div>
+      <div class="sync-status">
+        <div class="sync-dot ${isDemo ? 'warn' : (state.lastSync ? 'ok' : 'warn')}"></div>
+        <span>${isDemo ? 'Modo Demo — ' : ''}${t('sync_status')}: ${syncTime}</span>
+      </div>
+      ${!isDemo ? `<button class="btn-sync" onclick="syncWithDrive()">${t('sync_btn')}</button>` : ''}
+      ${!isDemo ? `<button class="btn-sync" style="margin-bottom:8px;border-color:rgba(0,229,176,0.2)" onclick="restoreFromDrive()">⬇ Restaurar do Drive</button>` : ''}
+      <button class="btn-logout" onclick="signOut()">${t('logout_btn')}</button>`;
+  }
+}
+
+// ╔══════════════════════════════════╗
+// ║  MODAL                           ║
+// ╚══════════════════════════════════╝
+function openModal(){ document.getElementById('loginModal').classList.add('open'); }
+function closeModal(){ document.getElementById('loginModal').classList.remove('open'); }
+document.getElementById('loginModal').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeModal(); });
+
+// ╔══════════════════════════════════╗
+// ║  WALLETS                         ║
+// ╚══════════════════════════════════╝
+const walletMap = { banco:'w-banco', movel:'w-movel', fisico:'w-fisico', outros:'w-outros' };
+function renderWallets(){ for(const[k,id]of Object.entries(walletMap)){ const el=document.getElementById(id); if(el) el.value=state.wallets[k]||''; } }
+function saveWallets(){ for(const[k,id]of Object.entries(walletMap)){ const el=document.getElementById(id); state.wallets[k]=parseFloat(el.value)||0; } updateStats(); updateGoal(); saveData(); }
+
+// ╔══════════════════════════════════╗
+// ║  STATS                           ║
+// ╚══════════════════════════════════╝
+function updateStats(){
+  const walletTotal = Object.values(state.wallets).reduce((a,b)=>a+b,0);
+  const inc = state.transactions.filter(t=>t.type==='income').reduce((a,t)=>a+t.amount,0);
+  const exp = state.transactions.filter(t=>t.type==='expense').reduce((a,t)=>a+t.amount,0);
+  document.getElementById('totalBalance').textContent = fmt(walletTotal);
+  document.getElementById('totalIncome').textContent  = fmt(inc)+' MTn';
+  document.getElementById('totalExpense').textContent = fmt(exp)+' MTn';
+}
+function fmt(n){ return n.toLocaleString('pt-MZ',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+// ╔══════════════════════════════════╗
+// ║  GOAL                            ║
+// ╚══════════════════════════════════╝
+function updateGoal(){
+  const goalEl=document.getElementById('goalInput');
+  const goal=parseFloat(goalEl.value)||state.goal;
+  state.goal=goal;
+  const total=Object.values(state.wallets).reduce((a,b)=>a+b,0);
+  const pct=goal>0?Math.min(100,(total/goal)*100):0;
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressPct').textContent=Math.round(pct)+'%';
+  document.getElementById('progressVals').textContent=fmt(total)+' / '+fmt(goal)+' MTn';
+  if(!goalEl.value) goalEl.value=state.goal;
+  saveData();
+}
+
+// ╔══════════════════════════════════╗
+// ║  TX TYPE & CATEGORIES            ║
+// ╚══════════════════════════════════╝
+function setType(type){
+  state.txType=type;
+  document.getElementById('btn-expense').classList.toggle('active',type==='expense');
+  document.getElementById('btn-income').classList.toggle('active',type==='income');
+  document.getElementById('walletLabel').textContent=type==='expense'?t('paid_from'):t('received_in');
+  const cats=type==='expense'?t('cats_expense'):t('cats_income');
+  const sel=document.getElementById('txCategory');
+  sel.innerHTML=cats.map(c=>`<option>${c}</option>`).join('');
+}
+
+// ╔══════════════════════════════════╗
+// ║  DATE                            ║
+// ╚══════════════════════════════════╝
+function setTodayDate(){
+  const el=document.getElementById('txDate');
+  if(!el.value){ const d=new Date(); el.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+}
+function getTodayStr(){
+  const d=new Date();
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
+function formatDisplayDate(isoDate){
+  if(!isoDate) return getTodayStr();
+  const parts=isoDate.split('-');
+  if(parts.length===3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return isoDate;
+}
+
+// ╔══════════════════════════════════╗
+// ║  ADD TRANSACTION                 ║
+// ╚══════════════════════════════════╝
+function addTransaction(){
+  const amount=parseFloat(document.getElementById('txAmount').value);
+  if(!amount||amount<=0){ toast(t('invalid_amount')); return; }
+  const tx={
+    id:Date.now(), type:state.txType, amount,
+    category:document.getElementById('txCategory').value,
+    wallet:document.getElementById('txWallet').value,
+    desc:document.getElementById('txDesc').value.trim()||document.getElementById('txCategory').value,
+    date:formatDisplayDate(document.getElementById('txDate').value)
+  };
+  state.transactions.unshift(tx);
+  const wKey=walletKeyFrom(tx.wallet);
+  if(wKey){
+    if(tx.type==='expense') state.wallets[wKey]=Math.max(0,(state.wallets[wKey]||0)-tx.amount);
+    else state.wallets[wKey]=(state.wallets[wKey]||0)+tx.amount;
+    renderWallets();
+  }
+  document.getElementById('txAmount').value='';
+  document.getElementById('txDesc').value='';
+  updateStats(); updateGoal(); renderTransactions(); renderChart(); renderCatBreakdown(); renderMonthSummary();
+  saveData();
+  toast(tx.type==='income'?t('tx_added_income'):t('tx_added_expense'));
+}
+function walletKeyFrom(name){ return {Banco:'banco','Carteira Móvel':'movel','Dinheiro Físico':'fisico',Outros:'outros'}[name]||null; }
+
+// ╔══════════════════════════════════╗
+// ║  RENDER TRANSACTIONS             ║
+// ╚══════════════════════════════════╝
+function renderTransactions(){
+  const list=document.getElementById('txList');
+  let txs=state.transactions;
+  if(state.filter!=='all') txs=txs.filter(t=>t.type===state.filter);
+  if(!txs.length){ list.innerHTML=`<div class="empty-state"><div class="empty-icon">📭</div>No transactions yet.</div>`; return; }
+  list.innerHTML=txs.map(tx=>`
+    <div class="tx-item">
+      <div class="tx-dot ${tx.type}"></div>
+      <div class="tx-info">
+        <div class="tx-desc">${escHtml(tx.desc)}</div>
+        <div class="tx-meta">${tx.category} • ${tx.wallet} • ${tx.date}</div>
+      </div>
+      <div class="tx-amount ${tx.type}">${tx.type==='income'?'+':'-'}${fmt(tx.amount)} MTn</div>
+      <button class="tx-delete" onclick="deleteTransaction(${tx.id})">✕</button>
+    </div>`).join('');
+}
+function deleteTransaction(id){
+  const tx=state.transactions.find(t=>t.id===id); if(!tx) return;
+  const wKey=walletKeyFrom(tx.wallet);
+  if(wKey){
+    if(tx.type==='expense') state.wallets[wKey]=(state.wallets[wKey]||0)+tx.amount;
+    else state.wallets[wKey]=Math.max(0,(state.wallets[wKey]||0)-tx.amount);
+    renderWallets();
+  }
+  state.transactions=state.transactions.filter(t=>t.id!==id);
+  updateStats(); updateGoal(); renderTransactions(); renderChart(); renderCatBreakdown(); renderMonthSummary();
+  saveData(); toast(t('tx_deleted'));
+}
+function setFilter(f,btn){ state.filter=f; document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderTransactions(); }
+
+// ╔══════════════════════════════════╗
+// ║  CHARTS                          ║
+// ╚══════════════════════════════════╝
+function setMonthDisplay(){ document.getElementById('monthDisplay').textContent=`${t('months')[state.chartMonth]} ${state.chartYear}`; }
+function changeMonth(dir){
+  state.chartMonth+=dir;
+  if(state.chartMonth>11){state.chartMonth=0;state.chartYear++;}
+  if(state.chartMonth<0){state.chartMonth=11;state.chartYear--;}
+  setMonthDisplay(); renderChart();
+}
+function renderChart(){
+  const chart=document.getElementById('barChart');
+  const weeks=t('weeks');
+  const data=weeks.map((_,wi)=>{
+    const filter=(type)=>state.transactions.filter(tx=>{
+      if(tx.type!==type) return false;
+      const d=parseDate(tx.date); if(!d) return false;
+      return d.getMonth()===state.chartMonth&&d.getFullYear()===state.chartYear&&Math.floor((d.getDate()-1)/7)===wi;
+    }).reduce((a,tx)=>a+tx.amount,0);
+    return {income:filter('income'),expense:filter('expense')};
+  });
+  const max=Math.max(...data.map(d=>Math.max(d.income,d.expense)),1);
+  chart.innerHTML=data.map((d,i)=>`
+    <div class="bar-group">
+      <div class="bar-pair">
+        <div class="bar income"  style="height:${(d.income/max)*100}%"  title="${fmt(d.income)} MTn"></div>
+        <div class="bar expense" style="height:${(d.expense/max)*100}%" title="${fmt(d.expense)} MTn"></div>
+      </div>
+      <div class="bar-label">${weeks[i]}</div>
+    </div>`).join('');
+}
+function renderCatBreakdown(){
+  const el=document.getElementById('catBreakdown');
+  const bycat={};
+  state.transactions.filter(t=>t.type==='expense').forEach(t=>{ bycat[t.category]=(bycat[t.category]||0)+t.amount; });
+  const total=Object.values(bycat).reduce((a,b)=>a+b,0)||1;
+  const sorted=Object.entries(bycat).sort((a,b)=>b[1]-a[1]);
+  if(!sorted.length){ el.innerHTML=`<div class="empty-state" style="padding:16px 0">—</div>`; return; }
+  el.innerHTML=sorted.map(([cat,amt])=>`
+    <div class="cat-item">
+      <div class="cat-label">${cat}</div>
+      <div class="cat-bar-wrap"><div class="cat-bar-fill" style="width:${(amt/total)*100}%"></div></div>
+      <div class="cat-amount">${fmt(amt)} MTn</div>
+    </div>`).join('');
+}
+function renderMonthSummary(){
+  const el=document.getElementById('monthSummary');
+  const now=new Date(); const m=now.getMonth(),y=now.getFullYear();
+  const monthTxs=state.transactions.filter(t=>{ const d=parseDate(t.date); return d&&d.getMonth()===m&&d.getFullYear()===y; });
+  const inc=monthTxs.filter(t=>t.type==='income').reduce((a,t)=>a+t.amount,0);
+  const exp=monthTxs.filter(t=>t.type==='expense').reduce((a,t)=>a+t.amount,0);
+  const bal=inc-exp;
+  [
+    {label:t('income_leg'),val:fmt(inc)+' MTn',color:'var(--income)'},
+    {label:t('expense_leg'),val:fmt(exp)+' MTn',color:'var(--expense)'},
+    {label:'Saldo',val:fmt(bal)+' MTn',color:bal>=0?'var(--income)':'var(--expense)'},
+    {label:'Transações',val:monthTxs.length,color:'var(--accent3)'}
+  ].forEach(c=>{
+    const d=document.createElement('div');
+    d.style.cssText='background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px';
+    d.innerHTML=`<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px">${c.label}</div><div style="font-family:Syne,sans-serif;font-size:1rem;font-weight:700;color:${c.color}">${c.val}</div>`;
+    el.appendChild(d);
+  });
+  // clear before re-render
+  el.innerHTML='';
+  [
+    {label:t('income_leg'),val:fmt(inc)+' MTn',color:'var(--income)'},
+    {label:t('expense_leg'),val:fmt(exp)+' MTn',color:'var(--expense)'},
+    {label:'Saldo',val:fmt(bal)+' MTn',color:bal>=0?'var(--income)':'var(--expense)'},
+    {label:'Tx',val:monthTxs.length,color:'var(--accent3)'}
+  ].forEach(c=>{ el.innerHTML+=`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px"><div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px">${c.label}</div><div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:${c.color}">${c.val}</div></div>`; });
+}
+function parseDate(str){
+  if(!str) return null;
+  const p=str.split('/');
+  if(p.length===3) return new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+  return null;
+}
+
+// ╔══════════════════════════════════╗
+// ║  TABS                            ║
+// ╚══════════════════════════════════╝
+function switchTab(tab){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+  const idx={overview:0,transactions:1,stats:2,account:3};
+  document.querySelectorAll('.tab')[idx[tab]].classList.add('active');
+  if(tab==='stats'){renderChart();renderCatBreakdown();renderMonthSummary();}
+  if(tab==='account') renderAccountPanel();
+}
+
+// ╔══════════════════════════════════╗
+// ║  DATA MANAGEMENT                 ║
+// ╚══════════════════════════════════╝
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`3lmerX_Finances_${getTodayStr().replace(/\//g,'-')}.json`; a.click();
+  toast(t('exported'));
+}
+function importJSON(event){
+  const file=event.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const imp=JSON.parse(e.target.result);
+      state={...state,...imp}; if(imp.wallets) state.wallets={...state.wallets,...imp.wallets};
+      renderWallets(); updateStats(); updateGoal(); renderTransactions(); renderChart(); renderCatBreakdown(); renderMonthSummary();
+      saveData(); toast(t('imported'));
+    }catch(err){ toast(t('invalid_file')); }
+  };
+  reader.readAsText(file); event.target.value='';
+}
+function confirmClear(){
+  if(confirm(t('confirm_clear'))){
+    state.transactions=[]; state.wallets={banco:0,movel:0,fisico:0,outros:0};
+    renderWallets(); updateStats(); updateGoal(); renderTransactions(); renderChart(); renderCatBreakdown(); renderMonthSummary();
+    saveData(); toast(t('cleared'));
+  }
+}
+
+// ╔══════════════════════════════════╗
+// ║  UTILS                           ║
+// ╚══════════════════════════════════╝
+function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+let toastTimer;
+function toast(msg){ const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),3200); }
+
+// ╔══════════════════════════════════╗
+// ║  AUTO-SAVE + KICK OFF            ║
+// ╚══════════════════════════════════╝
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) saveData(); });
+window.addEventListener('beforeunload', saveData);
+window.addEventListener('load',()=>{ setTimeout(initGoogleAuth, 1500); });
+init();
+</script>
+</body>
+</html>
